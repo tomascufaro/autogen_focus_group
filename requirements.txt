@@ -3,3 +3,6 @@ streamlit
 openai
 pandas
 numpy
+streamlit-extras
+langchain
+
