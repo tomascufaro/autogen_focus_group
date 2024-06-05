@@ -1,0 +1,30 @@
+{
+    "Persona 1": {
+        "Name": "Juan",
+        "Age": "<18",
+        "Gender": "male",
+        "Location": "North Eastern US",
+        "Education": "High School",
+        "Employment": "Employed",
+        "Income": "<20k",
+        "Marital Status": "Married",
+        "Children": "0",
+        "Occupation": "Management",
+        "Hobbies": [],
+        "Backstory": ""
+    },
+    "Persona 2": {
+        "Name": "martin",
+        "Age": "<18",
+        "Gender": "male",
+        "Location": "North Eastern US",
+        "Education": "High School",
+        "Employment": "Employed",
+        "Income": "<20k",
+        "Marital Status": "Married",
+        "Children": "0",
+        "Occupation": "Management",
+        "Hobbies": [],
+        "Backstory": ""
+    }
+}
