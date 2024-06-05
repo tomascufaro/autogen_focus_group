@@ -9,7 +9,7 @@ import json
 import autogen
 from autogen import AssistantAgent, UserProxyAgent, Agent
 import persona_handler as ph
-import random
+# import random
 
 with open('./docs/personas.json', 'r') as f:
     personas = json.load(f)
@@ -18,8 +18,7 @@ llm_config={
             "config_list": [
                 {
                     "model": 'gpt-3.5-turbo', 
-                    "api_key": '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', 
-                    #"base_url": "http://localhost:11434/v1",
+                    "api_key": st.secrets["OpenAI_APIKEY"],
                     "max_tokens": 4096, 
                 }
             ],
