@@ -22,10 +22,8 @@ with stylable_container(
             }
             """,
     ):  
+    user_input = st.text_area("Describe the analysis prompt:", value='Analyze the focus group chat and provide a detailed summary and analysis of the discussion in markdown format.')
     submit = st.button("Generate Analysis of Focus Group")
-
-
-
     if submit:
         if not summary:
             st.error("No chat data available. Please run a focus group before generating an analysis.")
@@ -47,15 +45,13 @@ with stylable_container(
                     st.markdown("<h4 style='text-align: center; color: grey;'>The following is a summary of the focus group chat.</h4>", unsafe_allow_html=True)
 
                 llm = cfg.completions_model
-
                 response = llm.chat.completions.create(
                     messages = [
                         {"role": "system",
-                        "content": f"Analyze the focus group chat and provide a detailed summary and analysis of the discussion in markdown format. Chat: {summary}"},
+                        "content": f"{user_input} Chat: {summary}"},
                     ],
-                    model="gpt-3.5-turbo"
+                    model="gpt-4o"
                 )
-
                 analysis = response.choices[0].message.content
                 filename = "./docs/chat_summary_analysis.txt"
                 with open(filename, 'a') as f:

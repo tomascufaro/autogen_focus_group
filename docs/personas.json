@@ -7,7 +7,7 @@
         "Education": "High School",
         "Employment": "Employed",
         "Income": "<20k",
-        "Marital Status": "Married",
+        "Marital Status": "Single",
         "Children": "0",
         "Occupation": "Management",
         "Hobbies": [],
@@ -21,9 +21,23 @@
         "Education": "High School",
         "Employment": "Employed",
         "Income": "<20k",
-        "Marital Status": "Married",
+        "Marital Status": "Single",
         "Children": "0",
         "Occupation": "Management",
+        "Hobbies": [],
+        "Backstory": ""
+    },
+    "Persona 3": {
+        "Name": "Jepe",
+        "Age": "25-30",
+        "Gender": "male",
+        "Location": "North Eastern US",
+        "Education": "Bachelor",
+        "Employment": "Employed",
+        "Income": "50k",
+        "Marital Status": "Single",
+        "Children": "2",
+        "Occupation": "Economics",
         "Hobbies": [],
         "Backstory": ""
     }

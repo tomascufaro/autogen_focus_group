@@ -17,9 +17,10 @@ with open('./docs/personas.json', 'r') as f:
 llm_config={
             "config_list": [
                 {
-                    "model": 'gpt-3.5-turbo', 
+                    "model": 'gpt-4o', 
                     "api_key": st.secrets["OpenAI_APIKEY"],
                     "max_tokens": 4096, 
+                    "temperature":0
                 }
             ],
             "cache_seed": None 
@@ -84,16 +85,27 @@ class CustomGroupChatManager(autogen.GroupChatManager):
             f.write(formatted_message + "\n")
         return super()._process_received_message(message, sender, silent)
     
+    
+class CustomAssistantAgent(AssistantAgent):
+    
+    @property
+    def system_message(self):
+        return super().system_message
+    
+    @system_message.setter
+    def system_message(self, value):
+        self._system_message = value    
+    
 
 class CustomGroupChat(autogen.GroupChat):
     @staticmethod
-    def custom_speaker_selection_func(last_speaker: Agent, groupchat: autogen.GroupChat) -> Union[Agent, Literal['auto', 'manual', 'random', 'round_robin'], None]:
+    def custom_speaker_selection_func(last_speaker: Agent, groupchat: autogen.GroupChat, max_interactions:int=6) -> Union[Agent, Literal['auto', 'manual', 'random', 'round_robin'], None]:
         # Define participants and initialize or update their interaction counters
         if not hasattr(groupchat, 'interaction_counters'):
             groupchat.interaction_counters = {agent.name: 0 for agent in groupchat.agents if agent.name != "Moderator"}
         # Define a maximum number of interactions per participant
         max_interactions = 6
-        if last_speaker == moderator_agent:
+        if  last_speaker and last_speaker.name == 'Moderator':
             next_participant = min(groupchat.interaction_counters, key=groupchat.interaction_counters.get)
             if groupchat.interaction_counters[next_participant] < max_interactions:
                 groupchat.interaction_counters[next_participant] += 1
@@ -101,18 +113,20 @@ class CustomGroupChat(autogen.GroupChat):
             else:
                 return None  # End the conversation if all participants have reached the maximum interactions
         else:
-            return moderator_agent
+            return next((agent for agent in groupchat.agents if agent.name == "Moderator"), None)
     #select_speaker_message_template = """You are in a focus group. The following roles are available:
     #            {roles}.
     #            Read the following conversation.
     #            Then select the next role from {agentlist} to play. Only return the role."""
        
 personas_agents = []
+names = []
 for persona_name, persona_data in personas.items():
     persona_name = persona_data['Name']
+    names.append(persona_name)
     persona_prompt = ph.persona_prompt
-    persona_description = json.dumps(personas)
-    persona_agent = AssistantAgent(
+    #persona_description = json.dumps(personas)
+    persona_agent = CustomAssistantAgent(
         name=persona_name,
         system_message=persona_prompt,
         llm_config=llm_config,
@@ -120,24 +134,19 @@ for persona_name, persona_data in personas.items():
         description=f"A virtual focus group participant named {persona_name}. They do not know anything about the product beyond what they are told. They should be called on to give opinions.",
     )
     personas_agents.append(persona_agent)
+names = ', '.join(names)
 
-
-moderator_agent = AssistantAgent(
+moderator_agent = CustomAssistantAgent(
     name="Moderator",
-    system_message=''' 
-    You are a top product reasearcher with a Phd in behavioural psychology and have worked in the research and 
-    insights industry for the last 20 years with top creative, media and business consultancies. Frame questions to uncover customer preferences, challenges, and feedback. 
-    Before you start the task breakdown the list of panelists and the order you want them to speak, avoid the panelists speaking with each other and creating comfirmation bias.
-    If the session is terminating at the end, please provide a summary of the outcomes of the reasearch study in clear concise notes not at the start.
-    You keep the conversation flowing between group members.
-    Do not reply more than once before another group member speaks again.
-    You can answer group members questions, but you do not offer additional information.
-    Do not offer opinions about the topic or user_input, only moderate the conversation.
-    Do not say thank you or the end.
-    Avoid people to repeat their self. Once you can't get more valuable insights terminate the conversation''',
     #default_auto_reply="Reply `TERMINATE` if the task is done.",
     llm_config=llm_config,
-    description="A Focus Group moderator.",
+    system_message='''
+    You keep the conversation flowing between group members. Limit your self just to moderate the debate do not express opinion as participant. Stay in character as moderator.
+    Do not reply more than once before another group member speaks again. You can answer group members questions, but you do not offer additional information and be as much concise as possible when responding. 
+    Do not offer opinions about the topic or user_input, only moderate the conversation. 
+    Do not say thank you or the end. If there is no mor to say terminate the conversation saying TERMINATE, avoid a greetings loop between the participants. 
+    This is the list of participants {} please make sure that everyone speaks more than once.'''.format(names),
+    description="A Focus Group moderator. Your role is to moderate the focus group",
     is_termination_msg=lambda x: True if "TERMINATE" in x.get("content") else False,
     human_input_mode="NEVER",
 )
@@ -146,19 +155,12 @@ user_proxy = UserProxyAgent(
     name="Admin",
     human_input_mode= "NEVER",
     system_message="Human Admin for the Focus Group.",
+    code_execution_config=False,
     max_consecutive_auto_reply=5,
     #default_auto_reply="Reply `TERMINATE` if the task is done.",
     is_termination_msg=lambda x: True if "TERMINATE" in x.get("content") else False,
 )
 
-
-groupchat = CustomGroupChat(agents=[user_proxy, moderator_agent] + personas_agents, messages=[], 
-                            speaker_selection_method=CustomGroupChat.custom_speaker_selection_func,
-                              max_round=20, 
-                              #select_speaker_message_template=CustomGroupChat.select_speaker_message_template
-                              )
-
-manager = CustomGroupChatManager(groupchat=groupchat, llm_config=llm_config, is_termination_msg=lambda x: True if "TERMINATE" in x.get("content") else False)
 
 with stylable_container(
         key="chat_container",
@@ -173,7 +175,14 @@ with stylable_container(
             """,
     ):
     with st.container(height=800):
-        user_input = st.text_area("Describe your product and the topic of discussion to the group:")
+        user_input = st.text_area("Describe your product and the topic of discussion to the group. This is going to be the starter message from the moderator to start the conversation:", value='Hi. The moderator will guide this debate about the benefits and dislike of our new brand product a pant made of recycled plastic. Please as participant share your thought on this')
+        groupchat = CustomGroupChat(agents=[moderator_agent] + personas_agents, messages=[], 
+                            speaker_selection_method=CustomGroupChat.custom_speaker_selection_func,
+                              max_round=20, 
+                              #select_speaker_message_template=CustomGroupChat.select_speaker_message_template
+                              )
+        manager = CustomGroupChatManager(groupchat=groupchat,
+                                  llm_config=llm_config, is_termination_msg=lambda x: True if "TERMINATE" in x.get("content") else False)
         with stylable_container(
             key="green_button",
             css_styles="""
@@ -183,22 +192,16 @@ with stylable_container(
                     box-shadow: 2px 0 7px 0 grey;
                 }
                 """,
-        ): 
+        ):             
             kickoff = st.button("Start Group Chat")
         
         if kickoff:
-        
-            llm_config=llm_config
-
-        
             if "chat_initiated" not in st.session_state:
                 st.session_state.chat_initiated = False
                 if not st.session_state.chat_initiated:
-                    moderator_agent.initiate_chat(
+                    user_proxy.initiate_chat(
                         manager,
                         message=user_input,
                     )
                     st.session_state.chat_initiated = True
-
-
     st.stop()
