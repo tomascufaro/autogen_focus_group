@@ -1,0 +1,11 @@
+name: old_navy
+channels:
+
+dependencies:
+  - python
+  - pip
+  - pyautogen
+  - streamlit
+  - openai
+  - pandas
+  - numpy
